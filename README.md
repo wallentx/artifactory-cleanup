@@ -198,7 +198,7 @@ policies:
   mask: "*.banned"
 ```
 
-- `PropertyEq`- Delete repository artifacts only with a specific property value (property_key is the name of the
+- `PropertyEq` - Delete repository artifacts only with a specific property value (property_key is the name of the
   parameter, property_value is the value)
 
 ```yaml
@@ -207,7 +207,7 @@ policies:
   property_value: 1
 ```
 
-- `PropertyNeq`- Delete repository artifacts only if the value != specified. If there is no value, delete it anyway.
+- `PropertyNeq` - Delete repository artifacts only if the value != specified. If there is no value, delete it anyway.
   Allows you to specify the deletion flag `do_not_delete = 1`
 
 ```yaml
@@ -258,29 +258,33 @@ policies:
 
 ```yaml
 - rule: DeleteByRegexpName
-  regex_pattern: "\d"
+  regex_pattern: '\d'
+```
+
+- `DeleteLeastRecentlyUsedFiles` - delete the least recently used files and keep at most requested number of files. Creation is interpreted as a first usage
+
+```yaml
+- rule: DeleteLeastRecentlyUsedFiles
+  keep: 10
 ```
 
 ## Keep
 
-- `KeepLatestNFiles` - Leaves the last (by creation time) files in the amount of N pieces. WITHOUT accounting
-  subfolders
+- `KeepLatestNFiles` - Leaves the last (by creation time) files in the amount of N pieces. WITHOUT accounting subfolders
 
 ```yaml
 - rule: KeepLatestNFiles
   count: 1
 ```
 
-- `KeepLatestNFilesInFolder` - Leaves the last (by creation time) files in the number of N pieces in each
-  folder
+- `KeepLatestNFilesInFolder` - Leaves the last (by creation time) files in the number of N pieces in each folder
 
 ```yaml
 - rule: KeepLatestNFilesInFolder
   count: 1
 ```
 
-- `KeepLatestVersionNFilesInFolder` - Leaves the latest N (by version) files in each
-  folder. The definition of the version is using regexp. By default it parses [semver](https://semver.org/) using the regex - `([\d]+\.[\d]+\.[\d]+)")`
+- `KeepLatestVersionNFilesInFolder` - Leaves the latest N (by version) files in each folder. The definition of the version is using regexp. By default it parses [semver](https://semver.org/) using the regex - `([\d]+\.[\d]+\.[\d]+)")`
 
 ```yaml
 - rule: KeepLatestVersionNFilesInFolder
@@ -350,6 +354,14 @@ policies:
   custom_regexp: "[^\\d][\\._]((\\d+\\.)+\\d+)"
 ```
 
+- `KeepLatestNDockerImages(count=N)` - Leaves N
+  most recently updated Docker image digests. This ensures all tags matching the same digest is kept.
+
+```yaml
+- rule: KeepLatestNDockerImages
+  count: 1
+```
+
 - `DeleteDockerImageIfNotContainedInProperties(docker_repo='docker-local', properties_prefix='my-prop', image_prefix=None, full_docker_repo_name=None)`
   \- Remove Docker image, if it is not found in the properties of the artifact repository.
 
@@ -394,6 +406,13 @@ policies:
   masks:
     - "*.tag.gz"
     - "*.zip"
+```
+
+- `FilterByRegexpPath` - delete artifacts whose path matches the specified regexp
+
+```yaml
+- rule: FilterByRegexpPath
+  path: '\d'
 ```
 
 ## Create your own rule
@@ -562,4 +581,3 @@ In order to provide a new release of `artifactory-cleanup`, there are two steps 
 1. Bump the version in the [setup.py](setup.py)
 2. Bump the version in the [__init__.py](./artifactory_cleanup/__init__.py)
 3. Create a Git release tag (in format `1.0.1`) by creating a release on GitHub
-

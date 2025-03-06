@@ -114,6 +114,7 @@ class DeleteDockerImagesOlderThanNDaysWithoutDownloads(RuleForDocker):
         last_day = self.today - self.days
         filter_ = [
             {"stat.downloads": {"$eq": None}},
+            {"stat.remote_downloads": {"$eq": None}},
             {"created": {"$lte": last_day.isoformat()}},
         ]
         filters.extend(filter_)
@@ -131,10 +132,28 @@ class DeleteDockerImagesNotUsed(RuleForDocker):
         print("Delete docker images not used from {}".format(last_day.isoformat()))
         filter_ = {
             "$or": [
-                {"stat.downloaded": {"$lte": last_day.isoformat()}},
+                {
+                    "$and": [
+                        {"stat.downloaded": {"$lte": last_day.isoformat()}},
+                        {"stat.remote_downloaded": {"$lte": last_day.isoformat()}},
+                    ]
+                },
+                {
+                    "$and": [
+                        {"stat.downloaded": {"$lte": last_day.isoformat()}},
+                        {"stat.remote_downloads": {"$eq": None}},
+                    ]
+                },
                 {
                     "$and": [
                         {"stat.downloads": {"$eq": None}},
+                        {"stat.remote_downloaded": {"$lte": last_day.isoformat()}},
+                    ]
+                },
+                {
+                    "$and": [
+                        {"stat.downloads": {"$eq": None}},
+                        {"stat.remote_downloads": {"$eq": None}},
                         {"created": {"$lte": last_day.isoformat()}},
                     ]
                 },
@@ -190,6 +209,33 @@ class ExcludeDockerImages(FilterDockerImages):
     operator = "$nmatch"
     boolean_operator = "$and"
 
+
+class KeepLatestNDockerImages(RuleForDocker):
+    """
+    Leaves ``count`` Docker image digests for each image. This allows tags that have the same digest to be kept.
+    """
+
+    def __init__(self, count: int):
+        self.count = count
+
+    def filter(self, artifacts):
+        artifacts = self._manifest_to_docker_images(artifacts)
+        artifacts_by_path = defaultdict(list)
+
+        for artifact in artifacts:
+            path = artifact["path"]
+            artifacts_by_path[path].append(artifact)
+
+        for path, _artifacts in artifacts_by_path.items():
+            sha256s_to_keep = set()
+            _artifacts.sort(reverse=True, key=lambda x: x['updated'])
+            for artifact in _artifacts:
+                if len(sha256s_to_keep) < self.count:
+                    sha256s_to_keep.add(artifact['sha256'])
+                if artifact['sha256'] in sha256s_to_keep:
+                    artifacts.keep(artifact)
+
+        return artifacts
 
 class KeepLatestNVersionImagesByProperty(RuleForDocker):
     r"""

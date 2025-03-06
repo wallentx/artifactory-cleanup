@@ -31,7 +31,12 @@ class DeleteWithoutDownloads(Rule):
     """
 
     def aql_add_filter(self, filters):
-        filter_ = {"stat.downloads": {"$eq": None}}
+        filter_ = {
+            "$and": [
+                {"stat.downloads": {"$eq": None}},
+                {"stat.remote_downloads":{"$eq": None}},
+            ],
+        }
         filters.append(filter_)
         return filters
 
@@ -49,6 +54,7 @@ class DeleteOlderThanNDaysWithoutDownloads(Rule):
         filter_ = {
             "$and": [
                 {"stat.downloads": {"$eq": None}},
+                {"stat.remote_downloads":{"$eq": None}},
                 {"created": {"$lte": last_day.isoformat()}},
             ],
         }
@@ -70,10 +76,28 @@ class DeleteNotUsedSince(Rule):
 
         filter_ = {
             "$or": [
-                {"stat.downloaded": {"$lte": str(last_day)}},
+                {
+                    "$and": [
+                        {"stat.downloaded": {"$lte": str(last_day)}},
+                        {"stat.remote_downloaded": {"$lte": str(last_day)}},
+                    ]
+                },
+                {
+                    "$and": [
+                        {"stat.downloaded": {"$lte": str(last_day)}},
+                        {"stat.remote_downloads": {"$eq": None}},
+                    ]
+                },
                 {
                     "$and": [
                         {"stat.downloads": {"$eq": None}},
+                        {"stat.remote_downloaded": {"$lte": str(last_day)}},
+                    ]
+                },
+                {
+                    "$and": [
+                        {"stat.downloads": {"$eq": None}},
+                        {"stat.remote_downloads": {"$eq": None}},
                         {"created": {"$lte": str(last_day)}},
                     ]
                 },
@@ -113,12 +137,25 @@ class DeleteByRegexpName(Rule):
     def __init__(self, regex_pattern):
         self.regex_pattern = rf"{regex_pattern}"
 
-    def aql_add_filter(self, filters):
-        print("Here's filters that we get\n", filters)
-        return filters
-
     def filter(self, artifacts: ArtifactsList) -> ArtifactsList:
         for artifact in artifacts[:]:
             if re.match(self.regex_pattern, artifact["name"]) is None:
                 artifacts.remove(artifact)
+        return artifacts
+
+
+class DeleteLeastRecentlyUsedFiles(Rule):
+    """
+    Delete the least recently used files, and keep at most ``keep`` files.
+    Creation is interpreted as a first usage.
+    """
+
+    def __init__(self, keep: int):
+        self.keep = keep
+
+    def filter(self, artifacts: ArtifactsList) -> ArtifactsList:
+        # List will contain fresh files at the beginning
+        artifacts.sort(key=utils.sort_by_usage, reverse=True)
+        kept_artifacts = artifacts[:self.keep]
+        artifacts.keep(kept_artifacts)
         return artifacts
