@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "artifactory-cleanup"
-version = "1.0.12"  # From setup.py
+version = "1.0.16"  # From setup.py
 description = "Rules and cleanup policies for Artifactory"
 authors = ["Alexey Burov <allburov@gmail.com>", "wallentx <william.allentx@gmail.com>"]
 license = "MIT"
